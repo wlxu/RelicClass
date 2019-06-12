@@ -84,10 +84,10 @@ cdef class Class:
     cdef spectra sp
     cdef output op
     cdef lensing le
+    cdef relicfast rf #WLX
     cdef file_content fc
 
-    cpdef int ready # Flag to see if classy can currently compute
-    cpdef int allocated # Flag to see if classy structs are allocated already
+    cpdef int ready # Flag
     cpdef object _pars # Dictionary of the parameters
     cpdef object ncp   # Keeps track of the structures initialized, in view of cleaning.
 
@@ -116,7 +116,6 @@ cdef class Class:
     def __cinit__(self, default=False):
         cpdef char* dumc
         self.ready = False
-        self.allocated = False
         self._pars = {}
         self.fc.size=0
         self.fc.filename = <char*>malloc(sizeof(char)*30)
@@ -176,6 +175,8 @@ cdef class Class:
     def struct_cleanup(self):
         if self.ready == _FALSE_:
              return
+        if "relicfast" in self.ncp: #WLX
+            relicfast_free(&self.rf)
         if "lensing" in self.ncp:
             lensing_free(&self.le)
         if "spectra" in self.ncp:
@@ -193,7 +194,6 @@ cdef class Class:
         if "background" in self.ncp:
             background_free(&self.ba)
         self.ready = False
-        self.allocated = False
 
     def _check_task_dependency(self, level):
         """
@@ -214,6 +214,8 @@ cdef class Class:
             ['lensing']
 
         """
+        if "relicfast" in level:  #WLX
+            level.append("lensing")
         if "lensing" in level:
             level.append("spectra")
         if "spectra" in level:
@@ -254,9 +256,9 @@ cdef class Class:
             return True
         return False
 
-    def compute(self, level=["lensing"]):
+    def compute(self, level=["relicfast"]): #WLX
         """
-        compute(level=["lensing"])
+        #compute(level=["lensing"])
 
         Main function, execute all the _init methods for all desired modules.
         This is called in MontePython, and this ensures that the Class instance
@@ -282,16 +284,13 @@ cdef class Class:
         # Append to the list level all the modules necessary to compute.
         level = self._check_task_dependency(level)
 
+
         # Check if this function ran before (self.ready should be true), and
         # if no other modules were requested, i.e. if self.ncp contains (or is
         # equivalent to) level. If it is the case, simply stop the execution of
         # the function.
         if self.ready and self.ncp.issuperset(level):
             return
-
-        # Check if already allocated to prevent memory leaks
-        if self.allocated:
-            self.struct_cleanup()
 
         # Otherwise, proceed with the normal computation.
         self.ready = False
@@ -313,7 +312,7 @@ cdef class Class:
         if "input" in level:
             if input_init(&self.fc, &self.pr, &self.ba, &self.th,
                           &self.pt, &self.tr, &self.pm, &self.sp,
-                          &self.nl, &self.le, &self.op, errmsg) == _FAILURE_:
+                          &self.nl, &self.le, &self.rf, &self.op, errmsg) == _FAILURE_: #WLX
                 raise CosmoSevereError(errmsg)
             self.ncp.add("input")
             # This part is done to list all the unread parameters, for debugging
@@ -387,8 +386,15 @@ cdef class Class:
                 raise CosmoComputationError(self.le.error_message)
             self.ncp.add("lensing")
 
+        if "relicfast" in level: #WLX
+          
+            if relicfast_init(&(self.pr), &(self.pt), &(self.ba),
+                            &(self.sp), &(self.rf)) == _FAILURE_:
+                self.struct_cleanup()
+                raise CosmoComputationError(self.rf.error_message)
+            self.ncp.add("relicfast")
+
         self.ready = True
-        self.allocated = True
 
         # At this point, the cosmological instance contains everything needed. The
         # following functions are only to output the desired numbers
@@ -706,6 +712,52 @@ cdef class Class:
         free(pvecback)
         return lum_distance
 
+    def run_relicfast(self):
+        return self.rf.run_relicfast
+
+
+
+      
+
+    # WLX
+    def bias(self,double k,double z):
+        """
+        Gives the bias for a given k and z and M collapse
+
+        .. note::
+
+            there is an additional check to verify if output contains `mPk`,
+            because otherwise a segfault will occur
+
+        """
+
+
+
+
+        cdef double *b = <double*> calloc(1, sizeof(double))
+
+
+
+
+
+
+        if (self.rf.run_relicfast == _FALSE_):
+            return 1.0
+
+
+	
+        if (self.pt.has_pk_matter == _FALSE_):
+            raise CosmoSevereError(
+                "No power spectrum computed. You must add mPk to the list of outputs."
+                )
+
+        if relicfast_bias_at_z_M_and_k(&self.rf,z,1.0e13,k,b) ==_FAILURE_:
+            raise CosmoSevereError("There was a problem with Relicfast")
+
+
+       
+        return b[0]
+
     # Gives the pk for a given (k,z)
     def pk(self,double k,double z):
         """
@@ -767,9 +819,10 @@ cdef class Class:
                 "No power spectrum computed. You must add mPk to the list of outputs."
                 )
         if (self.ba.Omega0_ncdm_tot == 0.):
-            raise CosmoSevereError(
-                "No massive neutrinos. You must use pk, rather than pk_cb."
-                )
+            return self.pk(k, z)
+            #raise CosmoSevereError(
+            #    "No massive neutrinos. You must use pk, rather than pk_cb."
+            #    )
 
         if (self.nl.method == 0):
              if spectra_pk_at_k_and_z(&self.ba,&self.pm,&self.sp,k,z,&pk,pk_ic,&pk_cb,pk_cb_ic)==_FAILURE_:
@@ -893,43 +946,6 @@ cdef class Class:
                 for index_mu in xrange(mu_size):
                     pk_cb[index_k,index_z,index_mu] = self.pk_cb_lin(k[index_k,index_z,index_mu],z[index_z])
         return pk_cb
-
-    def get_pk_and_k_and_z(self, nonlinear=True):
-        """
-        Returns a grid of matter power spectrum values and the z and k
-        at which it has been fully computed. Useful for creating interpolators.
-
-        Parameters
-        ----------
-        nonlinear : bool
-                Whether the returned power spectrum values are linear or non-linear (default)
-        """
-        cdef np.ndarray[DTYPE_t,ndim=2] pk_at_k_z = np.zeros((self.sp.ln_k_size, self.sp.ln_tau_size),'float64')
-        cdef np.ndarray[DTYPE_t,ndim=1] k = np.zeros((self.sp.ln_k_size),'float64')
-        cdef np.ndarray[DTYPE_t,ndim=1] z = np.zeros((self.sp.ln_tau_size),'float64')
-        cdef int index_k, index_tau
-        cdef double k0, kend, z0, zend, eps
-
-        eps = 1.0e-10
-        pk_lin_or_nonlin = self.pk if nonlinear else self.pk_lin
-
-        # Get k and z arrays
-        for index_k in xrange(self.sp.ln_k_size):
-            k[index_k] = np.exp(self.sp.ln_k[index_k])
-        for index_tau in xrange(self.sp.ln_tau_size):
-            z[index_tau] = self.z_of_tau(np.exp(self.sp.ln_tau[index_tau]))
-
-        # Avoid saturating the limits
-        z[-1] *= (1-eps)
-        z[0] *= (1+eps)
-        if(z[0] < eps):
-          z[0] = 0
-
-        # Now copy P(k,z)
-        for index_tau in xrange(self.sp.ln_tau_size):
-            for index_k in xrange(self.sp.ln_k_size):
-               pk_at_k_z[index_k, index_tau] = pk_lin_or_nonlin(k[index_k], z[index_tau])
-        return pk_at_k_z, k, z
 
     # Gives sigma(R,z) for a given (R,z)
     def sigma(self,double R,double z):
@@ -1135,30 +1151,6 @@ cdef class Class:
         free(pvecback)
 
         return f
-
-    def z_of_tau(self, tau):
-        """
-        Redshift corresponding to a given conformal time.
-
-        Parameters
-        ----------
-        tau : float
-                Conformal time
-        """
-        cdef double z
-        cdef int last_index #junk
-        cdef double * pvecback
-
-        pvecback = <double*> calloc(self.ba.bg_size,sizeof(double))
-
-        if background_at_tau(&self.ba,tau,self.ba.long_info,self.ba.inter_normal,&last_index,pvecback)==_FAILURE_:
-            raise CosmoSevereError(self.ba.error_message)
-
-        z = 1./pvecback[self.ba.index_bg_a]-1.
-
-        free(pvecback)
-
-        return z
 
     def Hubble(self, z):
         """
@@ -1720,7 +1712,15 @@ cdef class Class:
             elif name == 'sigma8':
                 value = self.sp.sigma8
             elif name == 'sigma8_cb':
-                value = self.sp.sigma8_cb
+                value = self.sp.sigma8
+            elif name == 'M_nu':
+                if self.rf.nu_hierarchy==0:
+                    raise CosmoSevereError("Do not use this without specifying a hierarchy!")
+                elif self.rf.nu_hierarchy==4:
+                    value = self.rf.m_SN/(pow(3,0.25))*3.0
+                else:
+                    value = self.rf.m_SN+self.rf.mnu_1+self.rf.mnu_2
+
             else:
                 raise CosmoSevereError("%s was not recognized as a derived parameter" % name)
             derived[name] = value
@@ -1799,7 +1799,7 @@ cdef class Class:
 
         # Set the module to the current values
         self.set(data.cosmo_arguments)
-        self.compute(["lensing"])
+        self.compute(["relicfast"])
 
         # Compute the derived paramter value and store them
         params = ctx.getData()

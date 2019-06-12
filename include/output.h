@@ -5,13 +5,14 @@
 
 #include "common.h"
 #include "lensing.h"
+#include "relicfast.h" //WLX
 
 /**
  * Maximum number of values of redshift at which the spectra will be
  * written in output files
  */
 
-#define _Z_PK_NUM_MAX_ 100
+#define _Z_PK_NUM_MAX_ 200
 
 /**
  * Structure containing various informations on the output format,
@@ -23,7 +24,7 @@ struct output {
 
   //@{
 
-  char root[_FILENAMESIZE_-32]; /**< root for all file names */
+  FileName root; /**< root for all file names */
 
   //@}
 
@@ -48,7 +49,7 @@ struct output {
   short write_thermodynamics; /**< flag for outputing thermodynamical evolution in file */
   short write_perturbations; /**< flag for outputing perturbations of selected wavenumber(s) in file(s) */
   short write_primordial; /**< flag for outputing scalar/tensor primordial spectra in files */
-
+  short write_relicfast; /** WLX */
   //@}
 
   /** @name - technical parameters */
@@ -88,6 +89,7 @@ extern "C" {
                   struct spectra * psp,
                   struct nonlinear * pnl,
                   struct lensing * ple,
+		  struct relicfast * prf, //WLX
                   struct output * pop
                   );
 
@@ -119,6 +121,12 @@ extern "C" {
                 struct spectra * psp,
                 struct output * pop
                 );
+  //WLX
+  int output_relicfast(
+                struct relicfast * prf,
+                struct output * pop
+                );
+
 
   int output_background(
                         struct background * pba,

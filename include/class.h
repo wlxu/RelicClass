@@ -29,6 +29,7 @@
 #include "transfer.h"
 #include "spectra.h"
 #include "lensing.h"
+#include "relicfast.h" //WLX
 #include "output.h"
 
 #endif

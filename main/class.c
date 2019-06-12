@@ -15,10 +15,11 @@ int main(int argc, char **argv) {
   struct spectra sp;          /* for output spectra */
   struct nonlinear nl;        /* for non-linear spectra */
   struct lensing le;          /* for lensed spectra */
+  struct relicfast rf; 	      /* WLX: for relicfast */
   struct output op;           /* for output files */
   ErrorMsg errmsg;            /* for error messages */
 
-  if (input_init_from_arguments(argc, argv,&pr,&ba,&th,&pt,&tr,&pm,&sp,&nl,&le,&op,errmsg) == _FAILURE_) {
+  if (input_init_from_arguments(argc, argv,&pr,&ba,&th,&pt,&tr,&pm,&sp,&nl,&le,&rf,&op,errmsg) == _FAILURE_) {
     printf("\n\nError running input_init_from_arguments \n=>%s\n",errmsg);
     return _FAILURE_;
   }
@@ -63,12 +64,24 @@ int main(int argc, char **argv) {
     return _FAILURE_;
   }
 
-  if (output_init(&ba,&th,&pt,&pm,&tr,&sp,&nl,&le,&op) == _FAILURE_) {
+  /** WLX */
+  if (relicfast_init(&pr,&pt,&ba,&sp,&rf) == _FAILURE_) {
+    printf("\n\nError in relicfast_init \n=>%s\n",rf.error_message);
+    return _FAILURE_;
+  }
+
+  if (output_init(&ba,&th,&pt,&pm,&tr,&sp,&nl,&le,&rf,&op) == _FAILURE_) {
     printf("\n\nError in output_init \n=>%s\n",op.error_message);
     return _FAILURE_;
   }
 
   /****** all calculations done, now free the structures ******/
+
+  /** WLX */
+  if (relicfast_free(&rf) == _FAILURE_) {
+    printf("\n\nError in relicfast_free \n=>%s\n",rf.error_message);
+    return _FAILURE_;
+  }
 
   if (lensing_free(&le) == _FAILURE_) {
     printf("\n\nError in lensing_free \n=>%s\n",le.error_message);

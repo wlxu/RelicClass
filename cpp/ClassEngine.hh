@@ -134,6 +134,7 @@ private:
   struct spectra sp;          /* for output spectra */
   struct nonlinear nl;        /* for non-linear spectra */
   struct lensing le;          /* for lensed spectra */
+  struct relicfast rf;	      /* WLX for relicfast */
   struct output op;           /* for output files */
 
   ErrorMsg _errmsg;            /* for error messages */
@@ -156,7 +157,8 @@ private:
 		 struct primordial * ppm,
 		 struct spectra * psp,
 		 struct nonlinear * pnl,
-		 struct lensing * ple,
+		 struct lensing * ple,	
+		 struct relicfast * prf, //WLX
 		 struct output * pop,
 		 ErrorMsg errmsg);
   //parnames

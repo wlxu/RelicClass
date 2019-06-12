@@ -218,12 +218,13 @@ int ClassEngine::class_main(
 			    struct spectra * psp,
 			    struct nonlinear * pnl,
 			    struct lensing * ple,
+			    struct relicfast * prf, //WLX
 			    struct output * pop,
 			    ErrorMsg errmsg) {
   
 
-  if (input_init(pfc,ppr,pba,pth,ppt,ptr,ppm,psp,pnl,ple,pop,errmsg) == _FAILURE_) {
-    printf("\n\nError running input_init_from_arguments \n=>%s\n",errmsg);
+  if (input_init(pfc,ppr,pba,pth,ppt,ptr,ppm,psp,pnl,ple,prf,pop,errmsg) == _FAILURE_) {
+    printf("\n\nError running input_init_from_arguments \n=>%s\n",errmsg);  //WLX
     dofree=false;
     return _FAILURE_;
   }
@@ -304,6 +305,21 @@ int ClassEngine::class_main(
     return _FAILURE_;
   }
 
+//WLX
+
+    if (relicfast_init(ppr,ppt,pba,psp,prf) == _FAILURE_) {
+    printf("\n\nError in relicfast_init \n=>%s\n",prf->error_message);
+    relicfast_free(&rf);
+    spectra_free(&sp);
+    transfer_free(&tr);
+    primordial_free(&pm);
+    perturb_free(&pt);
+    thermodynamics_free(&th);
+    background_free(&ba);
+    dofree=false;
+    return _FAILURE_;
+  }
+
 
   dofree=true;
   return _SUCCESS_;
@@ -328,7 +344,12 @@ int ClassEngine::computeCls(){
 int
 ClassEngine::freeStructs(){
   
-  
+//WLX
+  if (relicfast_free(&rf) == _FAILURE_) {
+    printf("\n\nError in relicfast_free \n=>%s\n",rf.error_message);
+    return _FAILURE_;
+  }
+    
   if (lensing_free(&le) == _FAILURE_) {
     printf("\n\nError in spectra_free \n=>%s\n",le.error_message);
     return _FAILURE_;

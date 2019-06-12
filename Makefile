@@ -17,7 +17,7 @@ vpath .base build
 ########################################################
 
 # your C compiler:
-CC       = gcc
+CC       = gcc 
 #CC       = icc
 #CC       = pgcc
 
@@ -77,7 +77,7 @@ endif
 
 TOOLS = growTable.o dei_rkck.o sparse.o evolver_rkck.o  evolver_ndf15.o arrays.o parser.o quadrature.o hyperspherical.o common.o
 
-SOURCE = input.o background.o thermodynamics.o perturbations.o primordial.o nonlinear.o transfer.o spectra.o lensing.o
+SOURCE = input.o background.o thermodynamics.o perturbations.o primordial.o nonlinear.o transfer.o spectra.o lensing.o relicfast.o
 
 INPUT = input.o
 
@@ -98,6 +98,8 @@ SPECTRA = spectra.o
 NONLINEAR = nonlinear.o
 
 LENSING = lensing.o
+
+RELICFAST = relicfast.o
 
 OUTPUT = output.o
 
