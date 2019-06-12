@@ -1,3 +1,19 @@
+RelicClass: a public CLASS extension for realistic bias computation with light relics. 
+
+RelicFast is here implemented as a module of CLASS, executed after the Lensing module and before Output. The reference input file containing all relevant parameters for RelicFast computation is given in 
+
+explanatory_relicfast.ini
+
+The python wrapper including RelicFast is available for interfacing with other codes. Note that to use with MontePython specifically, modify also the file montepython/add_derived.py line 116 to read
+
+cosmo.compute(["relicfast"])
+
+
+The original README for CLASS is below:
+
+============================================================================================
+
+
 CLASS: Cosmic Linear Anisotropy Solving System  {#mainpage}
 ==============================================
 
