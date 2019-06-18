@@ -221,6 +221,7 @@ int relicfast_init(	struct precision * ppr,
    if(prf->relicfast_verbose>0){printf("Relicfast not requested. Module skipped\n");}
    return _SUCCESS_;
  }
+  else{printf("Computing bias with relicfast...\n");}
 
 
   	#ifdef _OPENMP

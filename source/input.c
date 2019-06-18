@@ -2434,6 +2434,7 @@ if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || 
      int1);
     pop->z_pk_num = int1;
     if (prf->run_relicfast){
+      printf("Warning: you are overwriting the default redshifts of transfer function evalutation for RelicFast. Modify relicfast.h if the second element in your list is not 200.0");
       prf->Nz_transfer = int1;
       class_alloc(prf->zlist_transfer,
         int1*sizeof(double),
@@ -2443,7 +2444,6 @@ if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || 
     for (i=0; i<int1; i++) {
       pop->z_pk[i] = pointer1[i];
       if (prf->run_relicfast){
-        printf("Warning: you are overwriting the default redshifts of transfer function evalutation for RelicFast. Modify relicfast.h if the second element in your list is not 200.0");
 	 	// prf->zlist_transfer=allocate_1D_array(int1);
         prf->zlist_transfer[i] = pointer1[int1-1-i];
       }
